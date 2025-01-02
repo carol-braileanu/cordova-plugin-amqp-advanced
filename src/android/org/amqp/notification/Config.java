@@ -81,14 +81,3 @@ class Config {
     }
 }
 
-/*The config json example: 
- * { 
- *      host : host 
- *      port : port 
- *      virtualhost : virtualhost 
- *      login : login 
- *      password : password
- *      routingKey : key 
- *  }
- **/
-

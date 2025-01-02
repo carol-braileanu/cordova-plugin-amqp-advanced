@@ -28,7 +28,4 @@ class PushNotification {
         return new String("BEEP");
     }
 
-    //todo rendre parselable
-    //tod faire un mapper avec les données reçues par le service avant de l'envoyer
-
 }

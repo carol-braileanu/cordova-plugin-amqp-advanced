@@ -45,8 +45,8 @@ public class Push extends CordovaPlugin {
                         cordovaWebView = this.webView;
                         Log.e("INIT","INIT");
 			this.manager = new PushManager(cordova.getActivity(),this);
-                        // ############# INITIALIZE #############
-                        if (ACTION_INITIALIZE.equals(action)) {
+        // ############# INIT HERE #############
+        if (ACTION_INITIALIZE.equals(action)) {
 				// Check if there is cached notifications
 				if (!cachedNnotifications.isEmpty()) {
 					for (PushNotification notification : cachedNnotifications) {
@@ -90,9 +90,6 @@ public class Push extends CordovaPlugin {
 		Push.inPause = false;
 	}
 
-	//public static Context getWebView() {
-	//	return CordovaWebView;
-	//}
 
 	public static void sendJavascript(String js) {
 		if (null != cordovaWebView) {
@@ -107,61 +104,41 @@ public class Push extends CordovaPlugin {
 		}
 	}
 
-	// public static void proceedNotification(PushNotification extras) {
-	// 	if (null != extras) {
-	// 		if (null != cordovaWebView) {
-	// 			try {
-	// 				String js = notificationEventListener + "(\""
-	// 						+ extras.getId() + "\", \"" 
-	// 						+ extras.toString() + "\")";
-	// 				Log.d(TAG, js);
-	// 				sendJavascript(js);
-	// 			} catch (Exception e) {
-	// 				Log.e("ERROR WHILE NOT",e.getMessage());
-	// 			}
-	// 		} else {
-	// 			Log.v(TAG, "proceedNotification: caching extras to proceed at a later time.");
-	// 			cachedNnotifications.add(extras);
-			
-  //                       }
-	// 	}
-	// }
 
+	public static void proceedNotification(PushNotification extras) {
+		if (null != extras) {
+				if (null != cordovaWebView) {
+						try {
+								// Verificăm dacă extras este un JSON valid
+								String message = extras.toString(); // String-ul mesajului
+								String js;
 
-				public static void proceedNotification(PushNotification extras) {
-					if (null != extras) {
-							if (null != cordovaWebView) {
-									try {
-											// Verificăm dacă extras este un JSON valid
-											String message = extras.toString(); // String-ul mesajului
-											String js;
+								if (isJsonValid(message)) {
+										// Dacă este JSON, îl trimitem direct
+										js = "window.push.listenerCallback(\"BEEP\", " + message + ")";
+								} else {
+										// Dacă este string simplu, îl tratăm ca atare
+										js = "window.push.listenerCallback(\"BEEP\", \"" + message.replace("\"", "\\\"") + "\")";
+								}
 
-											if (isJsonValid(message)) {
-													// Dacă este JSON, îl trimitem direct
-													js = "window.push.listenerCallback(\"BEEP\", " + message + ")";
-											} else {
-													// Dacă este string simplu, îl tratăm ca atare
-													js = "window.push.listenerCallback(\"BEEP\", \"" + message.replace("\"", "\\\"") + "\")";
-											}
+								Log.d("Push", "Sending JavaScript event: " + js);
+								cordovaWebView.sendJavascript(js);
+						} catch (Exception e) {
+								Log.e("Push", "Error while sending notification", e);
+						}
+				}
+		}
+	}
 
-											Log.d("Push", "Sending JavaScript event: " + js);
-											cordovaWebView.sendJavascript(js);
-									} catch (Exception e) {
-											Log.e("Push", "Error while sending notification", e);
-									}
-							}
-					}
+	//Check if is valid JSON
+	private static boolean isJsonValid(String json) {
+			try {
+					new JSONObject(json);
+					return true;  
+			} catch (JSONException ex) {
+					return false; 
 			}
-
-			// Metodă pentru a verifica dacă string-ul este un JSON valid
-			private static boolean isJsonValid(String json) {
-					try {
-							new JSONObject(json);
-							return true; // Este un JSON valid
-					} catch (JSONException ex) {
-							return false; // Nu este JSON
-					}
-			}
+	}
 
 
 

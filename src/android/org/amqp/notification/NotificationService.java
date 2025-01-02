@@ -47,7 +47,7 @@ public class NotificationService extends Service{
                     
                     Config configuration = new Config(getApplicationContext());
                    
-                    Log.e("IN TREADDDDDDDDDDDDDDDDDDDDDDDDDDDD", configuration.host);
+                    Log.e("IN TREAD", configuration.host);
 
                     factory.setHost(configuration.host);
                     Log.e("RabbitMQ Debug", "Host set: " + configuration.host);
@@ -98,7 +98,6 @@ public class NotificationService extends Service{
 
                                  Log.e("Broadcast Sent", "Broadcast sent with message: " + new String(body));
 
-                                //sendBroadcast(intent);
                                 intent.setClassName(getApplicationContext().getPackageName(), "org.amqp.notification.PushReceiver");
                                 getApplicationContext().sendBroadcast(intent);
                                  channel.basicAck(deliveryTag, false);
