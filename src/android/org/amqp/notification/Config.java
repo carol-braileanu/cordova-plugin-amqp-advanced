@@ -81,7 +81,7 @@ class Config {
     }
 }
 
-/*The config json has the form
+/*The config json example: 
  * { 
  *      host : host 
  *      port : port 

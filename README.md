@@ -10,7 +10,7 @@ https://github.com/etouraille/cordova-plugin-amqp (10years old now)
   - the brocker listener must retain the message in the queue
   - the brocker listener must restart automatically when it stops
 
- * The sended message must raise a branded notification.
+ * The sended message must raise a branded notification. 
 
  * The notification have a json content, the json format
 
