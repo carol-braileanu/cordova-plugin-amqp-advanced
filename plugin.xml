@@ -22,7 +22,7 @@
     <source-file src="src/android/org/amqp/notification/Push.java" target-dir="src/org/amqp/notification/cordova" />
     <source-file src="src/android/org/amqp/notification/PushManager.java" target-dir="src/org/amqp/notification/cordova" />
     <source-file src="src/android/org/amqp/notification/PushNotification.java" target-dir="src/org/amqp/notification/cordova" />
-    <source-file src="src/android/PushReceiver.java" target-dir="src/org/amqp/notification/cordova" />
+    <source-file src="src/android/org/amqp/notification/PushReceiver.java" target-dir="src/org/amqp/notification/cordova" />
      
     <source-file src="src/android/org/amqp/notification/NotificationService.java" target-dir="src/org/amqp/notification/cordova" />
     <lib-file src="src/android/libs/amqp-client-5.24.0.jar" />
