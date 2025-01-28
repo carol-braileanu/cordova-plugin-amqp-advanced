@@ -1,132 +1,205 @@
 package org.amqp.notification;
+
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
 import android.os.IBinder;
-import android.util.Log;
 import android.os.Handler;
 import android.os.Message;
 import android.os.Messenger;
+import android.util.Log;
+import com.rabbitmq.client.*;
 
-import java.lang.Runnable;
-import java.lang.Thread;
-import java.lang.Exception;
+import org.apache.cordova.CordovaWebView;
+import org.apache.cordova.CallbackContext;
+import java.util.concurrent.TimeoutException;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import java.io.IOException;
-
-import com.rabbitmq.client.ConnectionFactory;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.DefaultConsumer;
-import com.rabbitmq.client.Envelope;
-import com.rabbitmq.client.AMQP;
-
-import org.amqp.notification.PushReceiver;
-import org.amqp.notification.Config;
+import java.util.List;
+import android.util.Pair;
 
 
-public class NotificationService extends Service{
-    
+public class NotificationService extends Service {
+
     protected Thread amqpThread;
-    
+    protected static Connection connection;
+    private static CordovaWebView cordovaWebView;
+    private Channel temporaryChannel; 
+    private static Context serviceContext;
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        serviceContext = this; // Init the context
+        Log.e("NotificationService", "Service context initialized.");
+    }
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        proceed(); 
-        return START_REDELIVER_INTENT; // must be able to get the intent
-            // because in the first intent there are the connexion and user information.
-            // what is the solution to stop the servi   ce without calling stop self
+        Log.e("NotificationService", "Service started with onStartCommand.");
+        if (serviceContext == null) {
+            serviceContext = this; 
+            Log.e("NotificationService", "Service context initialized in onStartCommand.");
+        }
+        proceed();
+        return START_REDELIVER_INTENT;
     }
+
     
-    //The thread listen to rabbit MQ
-    //Received message are broadcasted
-    //The message are proccessed in the PushManager and send to the view there.
+
     protected void proceed() {
-        Log.e("IN PROCEED", "IN PROCEED");
-        amqpThread = new Thread(new Runnable() {
-            public void run() {
-                try {
-                    ConnectionFactory factory = new ConnectionFactory();
-                    
-                    Config configuration = new Config(getApplicationContext());
-                   
-                    Log.e("IN TREAD", configuration.host);
 
-                    factory.setHost(configuration.host);
-                    Log.e("RabbitMQ Debug", "Host set: " + configuration.host);
-                    factory.setUsername(configuration.username);
-                    factory.setPassword(configuration.password);
-                    factory.setVirtualHost(configuration.virtualHost);
-                    factory.setPort(configuration.port);
-                    Log.e("RabbitMQ Debug", "Port set: " + configuration.port);
-                    factory.useSslProtocol("TLSv1.2");
-                    Log.e("RabbitMQ Debug", "TLS protocol set");
-                    Connection connection = factory.newConnection();
-                    Log.e("RabbitMQ Debug", "Connection established");
-                    final Channel channel = connection.createChannel();
-                    Log.e("RabbitMQ Debug", "Channel created");
-                    //#
-                    
-                    //#QUEUE DECLARATION
-                    //the queue is a pile that dispatch message between worker
-                    //if two queues have the same name, then the message will be ballanced between the queue 
-                    //when we define a routingKey, the purpose migth be to corresponding queue
-                    //or to use a specific mapping, for instance in the direct messaging.
-                    //The choice we have to examine, is declaring a single queue for all the application
-                    //or declaring a new queue for each application
-                    //if i declare a single queue, it can be reload on and on again when restarting the notification service, 
-                     
-                    String queueName = configuration.queueName;
-                    // String exchangeName = "api_gateway"; 
-                    //String queueName = "health_queue";
-                    
-                    boolean autoAck = false;
+        amqpThread = new Thread(() -> {
+            try {
+                ConnectionFactory factory = new ConnectionFactory();
+                Config configuration = new Config(NotificationService.this);
 
-                    channel.basicConsume(queueName, autoAck, "myConsumerTag",
-                        new DefaultConsumer(channel) {
-                            @Override
-                            public void handleDelivery(String consumerTag,
-                                    Envelope envelope,
-                                    AMQP.BasicProperties properties,
-                                    byte[] body) throws IOException
-                            {
-                                Log.e("RabbitMQ Message Received", "Message: " + new String(body));
+                factory.setHost(configuration.host);
+                factory.setUsername(configuration.username);
+                factory.setPassword(configuration.password);
+                factory.setVirtualHost(configuration.virtualHost);
+                factory.setPort(configuration.port);
+                factory.useSslProtocol("TLSv1.2");
 
-                                 String routingKey = envelope.getRoutingKey();
-                                 long deliveryTag = envelope.getDeliveryTag();
-                                 String message = new String(body);
-                                 Intent intent = new Intent();
-                                 intent.setAction(PushReceiver.PUSH_INTENT_ACTION);
-                                 intent.putExtra(PushReceiver.PUSH_INTENT_EXTRA,message); 
+                factory.setAutomaticRecoveryEnabled(true);
+                factory.setHandshakeTimeout(5000);
+                factory.setRequestedHeartbeat(30);
+                factory.setNetworkRecoveryInterval(5000);
 
-                                 Log.e("Broadcast Sent", "Broadcast sent with message: " + new String(body));
+                connection = factory.newConnection();
+                Log.e("RabbitMQ", "Connection established");
 
-                                intent.setClassName(getApplicationContext().getPackageName(), "org.amqp.notification.PushReceiver");
-                                getApplicationContext().sendBroadcast(intent);
-                                 channel.basicAck(deliveryTag, false);
-                             }
+                connection.addShutdownListener(cause -> {
+                    if (!cause.isInitiatedByApplication()) {
+                        Log.e("RabbitMQ", "Connection lost: " + cause.getMessage());
+                        String js = "window.push.onConnectionLost()";
+                        cordovaWebView.loadUrl("javascript:" + js);
+                    }
+                });
+
+                List<JSONObject> configurations = Push.getConfigurations(NotificationService.this);
+                for (JSONObject config : configurations) {
+                    String queueName = config.optString("queueName", null);
+
+                    if (queueName == null || queueName.isEmpty()) {
+                        Log.e("RabbitMQ - NotificationService", "Queue name is null or empty. Skipping configuration.");
+                        continue;
+                    }
+
+                    Log.e("RabbitMQ - NotificationService", "Creating consumer for queue: " + queueName);
+
+                    Channel channel = connection.createChannel();
+                    channel.basicConsume(queueName, false, "consumer_" + queueName, new DefaultConsumer(channel) {
+                        @Override
+                        public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
+                            String message = new String(body);
+                            Log.e("RabbitMQ - RabbitMQ Message", "Received from queue - FIXED QUEUES " + queueName + ": " + message);
+
+                            Intent intent = new Intent();
+                            intent.setAction(PushReceiver.PUSH_INTENT_ACTION);
+                            intent.putExtra(PushReceiver.PUSH_INTENT_EXTRA, message);
+                            intent.setClassName(getApplicationContext().getPackageName(), "org.amqp.notification.PushReceiver");
+                            getApplicationContext().sendBroadcast(intent);
+
+                            channel.basicAck(envelope.getDeliveryTag(), false);
+                        }
                     });
 
-                    Log.e("RabbitMQ", "basicConsume called!");
-
+                    Log.e("RabbitMQ", "Consumer added for queue: " + queueName);
+                }
             } catch (Exception e) {
-                e.printStackTrace();
+                Log.e("RabbitMQ Error", "Error in RabbitMQ listener", e);
             }
-        }
         });
+
         amqpThread.start();
-    
     }
-    //broadcast an error message if the service is unable to connext.
-    //ferme le service must be able to restart after connection fail.
+
+
+    public void createAndListenTemporaryQueueAsync(CallbackContext callbackContext) {
+        new Thread(() -> {
+            try {
+                if (connection == null || !connection.isOpen()) {
+                    Log.e("RabbitMQ", "Connection is not open. Cannot create temporary queue.");
+                    callbackContext.error("Connection is not open.");
+                    return;
+                }
+
+                /*
+                 * String queueName = "NotificationQueue";
+                    boolean durable = false; // if the rabbitMQ server stops, the queue is stile available
+                    boolean exclusive = false; //the queue can be consume by other connexion, not dedicated to that connection only.
+                    boolean autoDelete = false; //the queue must not be deleted, because it miht be use eventually by other apps
+                    channel.queueDeclare(queueName, durable, exclusive, autoDelete, null);
+                 */
+
+                //  Map<String, Object> argsMap = new HashMap<>();
+                //  argsMap.put("x-expires", 120000);
+                //  argsMap
+    
+                Channel channel = connection.createChannel();
+                //String queueName = channel.queueDeclare("", false, true, true, null).getQueue();
+                String queueName = channel.queueDeclare(
+                    "", // Numele cozii va fi generat automat
+                    false, // Durabilitatea cozii (false = nu e durabilă)
+                    true,  // Exclusivă (true = se poate folosi doar de către conexiunea curentă)
+                    true,  // Auto-deleted (coada va fi ștearsă automat când nu mai există consumatori)
+                    null // x-expires = 120000 milisecunde (adică 120 de secunde)
+                ).getQueue();
+
+
+                Log.e("RabbitMQ", "Temporary queue created: " + queueName);
+    
+                channel.basicConsume(queueName, false, "consumer_" + queueName, new DefaultConsumer(channel) {
+                    @Override
+                    public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
+                        String message = new String(body);
+                        Log.e("RabbitMQ Message", "Received from TEMP queue: " + message);
+    
+                        Intent intent = new Intent();
+                        intent.setAction(PushReceiver.PUSH_INTENT_ACTION);
+                        intent.putExtra(PushReceiver.PUSH_INTENT_EXTRA, message);
+                        intent.setClassName(NotificationService.serviceContext.getPackageName(), "org.amqp.notification.PushReceiver");
+                        NotificationService.serviceContext.sendBroadcast(intent);
+    
+                        channel.basicAck(envelope.getDeliveryTag(), false);
+
+                        Log.e("RabbitMQ", "Deleting temporary queue: " + queueName);
+                        channel.queueDelete(queueName);
+                        try {
+                            channel.close();
+                            Log.e("RabbitMQ", "Channel closed successfully.");
+                        } catch (TimeoutException e) {
+                            Log.e("RabbitMQ", "TimeoutException while closing the channel: " + e.getMessage());
+                        } catch (IOException e) {
+                            Log.e("RabbitMQ", "IOException while closing the channel: " + e.getMessage());
+                        }
+                    }
+                });
+    
+                Log.e("RabbitMQ", "Listening on temporary queue: " + queueName);
+                callbackContext.success(queueName);
+            } catch (IOException e) {
+                Log.e("RabbitMQ", "Error in createAndListenTemporaryQueueAsync: " + e.getMessage());
+                callbackContext.error("Error creating temporary queue: " + e.getMessage());
+            }
+        }).start();
+    }
+    
+
+
     @Override
-    public void onDestroy(){
-        amqpThread = null; //We destroy the thread.
-        super.onDestroy();   
+    public void onDestroy() {
+        amqpThread = null;
+        super.onDestroy();
     }
 
     class IncomingHandler extends Handler {
         @Override
         public void handleMessage(Message msg) {
             switch (msg.what) {
-                case 1 :
+                case 1:
                     break;
                 default:
                     super.handleMessage(msg);
@@ -134,15 +207,8 @@ public class NotificationService extends Service{
         }
     }
 
-    /**
-     * Target we publish for clients to send messages to IncomingHandler.
-     */
     final Messenger mMessenger = new Messenger(new IncomingHandler());
 
-    /**
-     * When binding to the service, we return an interface to our messenger
-     * for sending messages to the service.
-     */
     @Override
     public IBinder onBind(Intent intent) {
         return mMessenger.getBinder();

@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <plugin xmlns="http://apache.org/cordova/ns/plugins/1.0" id="org.amqp.notification" version="0.0.1">
-  <name>AMQP notification system</name>
-  <description>AMQP notification system for cordova</description>
+  <name>AMQP notification</name>
+  <description>AMQP notification for cordova</description>
   <license>MIT</license>
-  <keywords>push,notification,rabbitMQ,amqp, rabbitmq, message broker</keywords>
-  <author email="developer@prestbit.de" href="https://www.prestbit.de">Prestbit</author>
+  <keywords>push,notification,rabbitMQ,amqp</keywords>
+  <author email="edouard.touraille@gmail.com" href="http://www.objetspartages.org">Flibusteam</author>
   <engines>
-      <engine name="cordova" version=">=10.0.0" />
+      <engine name="cordova" version=">=4.0.0" />
   </engines>
   <js-module src="www/notification.js" name="Push">
     <clobbers target="push" />
@@ -18,26 +18,24 @@
         <param name="android-package" value="org.amqp.notification.Push"/>
       </feature>
     </config-file>
- 
-    <source-file src="src/android/org/amqp/notification/Config.java  Config.java" target-dir="src/org/amqp/notification/cordova" />
-    <source-file src="src/android/org/amqp/notification/Push.java" target-dir="src/org/amqp/notification/cordova" />
-    <source-file src="src/android/org/amqp/notification/PushManager.java" target-dir="src/org/amqp/notification/cordova" />
-    <source-file src="src/android/org/amqp/notification/PushNotification.java" target-dir="src/org/amqp/notification/cordova" />
-    <source-file src="src/android/org/amqp/notification/PushReceiver.java" target-dir="src/org/amqp/notification" />
+    <source-file src="src/android/Config.java" target-dir="src/org/amqp/notification/cordova" />
+    <source-file src="src/android/Push.java" target-dir="src/org/amqp/notification/cordova" />
+    <source-file src="src/android/PushManager.java" target-dir="src/org/amqp/notification/cordova" />
+    <source-file src="src/android/PushNotification.java" target-dir="src/org/amqp/notification/cordova" />
+    <source-file src="src/android/PushReceiver.java" target-dir="src/org/amqp/notification/cordova" />
      
-    <source-file src="src/android/org/amqp/notification/NotificationService.java" target-dir="src/org/amqp/notification/cordova" />
-    <lib-file src="src/android/libs/amqp-client-5.24.0.jar" />
+    <source-file src="src/android/NotificationService.java" target-dir="src/org/amqp/notification/cordova" />
+    <lib-file src="src/android/amqp-client-5.24.0.jar" />
     <config-file target="AndroidManifest.xml" parent="/*">
       <uses-permission android:name="android.permission.INTERNET" />
     </config-file>
     <config-file target="AndroidManifest.xml" parent="/manifest/application">
-        <service android:name="org.amqp.notification.NotificationService" >
-        </service>
-        <receiver android:name="org.amqp.notification.PushReceiver" android:permission="com.google.android.c2dm.permission.SEND">
-        <intent-filter>
-          <action android:name="org.amqp.notification.push.intent.action"/>
-        </intent-filter>
-      </receiver>
+        <service android:exported="false" android:name="org.amqp.notification.NotificationService" />
+        <receiver android:exported="false" android:name="org.amqp.notification.PushReceiver">
+            <intent-filter>
+                <action android:name="org.amqp.notification.push.intent.action" />
+            </intent-filter>
+        </receiver>
     </config-file>
   </platform>
 </plugin>

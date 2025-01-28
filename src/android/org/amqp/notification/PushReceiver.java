@@ -3,7 +3,8 @@ package org.amqp.notification;
 import android.content.Context;
 import android.content.Intent;
 import android.content.BroadcastReceiver;
-
+import org.amqp.notification.Push;
+import org.amqp.notification.PushNotification;
 import java.lang.String;
 import android.util.Log;
 
@@ -14,14 +15,13 @@ public class PushReceiver extends BroadcastReceiver {
     
     @Override
     public void onReceive(Context context, Intent intent) {
-        Log.e("PushReceiver", "Broadcast received with action: " + intent.getAction());
+        Log.e("RabbitMQ - PushReceiver", "Broadcast received with action: " + intent.getAction());
         if (PUSH_INTENT_ACTION.equals(intent.getAction())) {
             String message = intent.getStringExtra(PUSH_INTENT_EXTRA);
-            Log.e("PushReceiver", "Message content: " + message);
+            Log.e("RabbitMQ - PushReceiver", "Message content: " + message);
             Push.proceedNotification(new PushNotification(message));
         } else {
-            Log.e("PushReceiver", "Unknown action: " + intent.getAction());
+            Log.e("RabbitMQ - PushReceiver", "Unknown action: " + intent.getAction());
         }
     }
-
 }

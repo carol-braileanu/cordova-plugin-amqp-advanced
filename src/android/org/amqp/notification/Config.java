@@ -2,6 +2,7 @@ package org.amqp.notification;
 
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.json.JSONArray;
 
 import java.lang.String;
 import java.lang.Integer;
@@ -11,6 +12,7 @@ import java.io.IOException;
 import java.io.FileInputStream;
 
 import android.content.Context;
+import android.util.Log;
 
 class Config {
 
@@ -23,6 +25,7 @@ class Config {
     public String virtualHost;
     public String queueName;
     public String routingKey;
+    public String queues;
 
     public static void init( JSONObject configuration , Context context ) {
         writeInConfigFile(
@@ -65,19 +68,45 @@ class Config {
         }
     }
 
-    protected void initVarFromJson( JSONObject json ) {
-    
+
+    public void addQueue(String queueName, String routingKey) {
+        try {
+            JSONArray queues = new JSONArray(this.queues);
+            JSONObject newQueue = new JSONObject();
+            newQueue.put("queueName", queueName);
+            newQueue.put("routingKey", routingKey);
+            queues.put(newQueue);
+            this.queues = queues.toString();
+        } catch (JSONException e) {
+            Log.e("Config", "Error adding queue: " + e.getMessage());
+        }
+    }
+
+    protected void initVarFromJson(JSONObject json) {
         try {
             this.host = json.getString("host");
             this.port = Integer.parseInt(json.getString("port"));
             this.username = json.getString("username");
             this.password = json.getString("password");
             this.virtualHost = json.getString("virtualHost");
-            this.queueName = json.getString("queueName");
-            this.routingKey = json.getString("routingKey");
-        } catch (JSONException e ) {
-           e.printStackTrace(); 
+    
+            // Init queues as JSON string
+            this.queues = json.getJSONArray("queues").toString();
+        } catch (JSONException e) {
+            e.printStackTrace();
         }
     }
+    
 }
+
+/*The config json has the form
+ * { 
+ *      host : host 
+ *      port : port 
+ *      virtualhost : virtualhost 
+ *      login : login 
+ *      password : password
+ *      routingKey : key 
+ *  }
+ **/
 

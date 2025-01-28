@@ -27,5 +27,4 @@ class PushNotification {
     public String getId(){
         return new String("BEEP");
     }
-
 }
