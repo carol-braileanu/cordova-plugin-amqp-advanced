@@ -20,27 +20,13 @@ Sends notifications with JSON content.
 
 Works seamlessly with Cordova applications.
 
-src/
-├── android/
-│   ├── org/amqp/notification/Config.java
-│   ├── org/amqp/notification/Push.java
-│   ├── org/amqp/notification/PushManager.java
-│   ├── org/amqp/notification/PushNotification.java
-│   ├── org/amqp/notification/PushReceiver.java
-│   ├── org/amqp/notification/NotificationService.java
-│   ├── libs/amqp-client-5.24.0.jar
-│   ├── libs/slf4j-api-1.7.32.jar
-│
-├── ios/
-│   ├── Push.swift
-
-
 
 Installation
 
-To install the plugin, use:
+To install this plugin, use:
 
-cordova plugin add <plugin-repository-url>
+From GitHub:   cordova plugin add <plugin-repository-url>
+From NPM:      cordova plugin add cordova-plugin-amqp-advanced (NPM)
 
 
 document.addEventListener('deviceready', function () {
