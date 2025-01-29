@@ -14,7 +14,7 @@ Automatically restarts the listener when the network becomes available.
 
 Ensures messages are retained in the queue until they are processed.
 
-Supports SSL and non-SSL connections.
+Supports SSL and non-SSL connections but recommendation is to stay only on ssl.
 
 Sends notifications with JSON content.
 
@@ -25,8 +25,13 @@ Installation
 
 To install this plugin, use:
 
-From GitHub:   cordova plugin add <plugin-repository-url>
-From NPM:      cordova plugin add cordova-plugin-amqp-advanced (NPM)
+From GitHub:   
+cordova plugin add <plugin-repository-url>
+
+OR 
+
+From NPM:      
+cordova plugin add cordova-plugin-amqp-advanced (NPM)
 
 
 document.addEventListener('deviceready', function () {
