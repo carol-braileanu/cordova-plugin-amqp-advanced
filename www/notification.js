@@ -64,6 +64,23 @@
                 "createTemporaryQueue",
                 []
             );
+        },
+        deleteTemporaryQueue: function(queueName, successCallback, errorCallback) {
+            if (!queueName || typeof queueName !== "string") {
+                console.error("Queue name is required and must be a string");
+                if (errorCallback) {
+                    errorCallback("Queue name is required and must be a string");
+                }
+                return;
+            }
+        
+            cordova.exec(
+                successCallback,
+                errorCallback,
+                "Push",
+                "deleteTemporaryQueue",
+                [queueName]
+            );
         }
     };
 

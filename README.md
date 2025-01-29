@@ -1,25 +1,52 @@
-First of all I have to say that is an little advanced / updated version of:
-https://github.com/etouraille/cordova-plugin-amqp (10years old now)
+Cordova AMQP Plugin
+
+Overview
+
+This plugin provides a messaging notification system using an AMQP broker for both Android and iOS platforms. It allows devices to receive messages from a broker using a unique identifier, ensuring reliable message delivery even when the network connection is lost.
+
+This plugin is an updated and improved version of cordova-plugin-amqp, originally developed 10 years ago.
+
+Features
+
+Connects to an AMQP broker to send and receive messages.
+
+Automatically restarts the listener when the network becomes available.
+
+Ensures messages are retained in the queue until they are processed.
+
+Supports SSL and non-SSL connections.
+
+Sends notifications with JSON content.
+
+Works seamlessly with Cordova applications.
+
+src/
+├── android/
+│   ├── org/amqp/notification/Config.java
+│   ├── org/amqp/notification/Push.java
+│   ├── org/amqp/notification/PushManager.java
+│   ├── org/amqp/notification/PushNotification.java
+│   ├── org/amqp/notification/PushReceiver.java
+│   ├── org/amqp/notification/NotificationService.java
+│   ├── libs/amqp-client-5.24.0.jar
+│   ├── libs/slf4j-api-1.7.32.jar
+│
+├── ios/
+│   ├── Push.swift
 
 
-Notification system for broker meesaging 
 
- * Notification are send via a broker, and can adress a certain device 
-  - the device is identified via a unique identifier
-  - the brocker listener must restart when the network is available
-  - the brocker listener must retain the message in the queue
-  - the brocker listener must restart automatically when it stops
- * The sended message must raise a branded notification. 
- * The notification have a json content, the json format
- * The plugin is available for cordova.
+Installation
+
+To install the plugin, use:
+
+cordova plugin add <plugin-repository-url>
 
 
- Simply access with -----
-
- document.addEventListener('deviceready', function () {
+document.addEventListener('deviceready', function () {
     var config = {
       host: "app.domain.com",
-      port: "5671",  // 5671-ssl 5672-nonssl
+      port: "5671",  // 5671 for SSL, 5672 for non-SSL
       username: "myUsername",
       password: "myPassword",
       virtualHost: "/",
@@ -27,16 +54,13 @@ Notification system for broker meesaging
       routingKey: "some-routing-key"
     };
   
-
     var myListener = function (event, data) {
       try {
-          // JSON or String -> + work must be done here
           if (typeof data === "string" && data.startsWith("{") && data.endsWith("}")) {
               var jsonData = JSON.parse(data);
               console.log("Received JSON:", jsonData);
               alert("JSON Status: " + JSON.stringify(jsonData));
           } else {
-              // if is string just use it -> + work must be done here
               console.log("Received string:", data);
               alert("Message: " + data);
           }
@@ -47,19 +71,71 @@ Notification system for broker meesaging
     };
   
     push.register(myListener, config);
-  });
+});
+Configuration Object
+{
+  "host": "app.domain.com",
+  "port": "5671",
+  "virtualHost": "/",
+  "username": "myUsername",
+  "password": "myPassword",
+  "queueName": "your-queue-name",
+  "routingKey": "some-routing-key"
+}
+Plugin API
+register(listener, configuration, onConnectionLostCallback, successAppCallback, errorAppCallback)
+Registers the plugin and connects to the AMQP broker.
+
+Parameters:
+
+listener: Function to handle incoming messages.
+
+configuration: JSON object containing broker settings.
+
+onConnectionLostCallback: Optional callback when the connection is lost.
+
+successAppCallback: Optional success callback.
+
+errorAppCallback: Optional error callback.
+
+createTemporaryQueue(successCallback, errorCallback)
+Creates a temporary queue for receiving messages.
+
+Parameters:
+
+successCallback(queueName): Callback function that returns the created queue name.
+
+errorCallback(error): Callback function for error handling.
+
+deleteTemporaryQueue(queueName, successCallback, errorCallback)
+Deletes a specified temporary queue.
+
+Parameters:
+
+queueName: Name of the queue to be deleted.
+
+successCallback(): Callback function for successful deletion.
+
+errorCallback(error): Callback function for error handling.
+
+Handling Connection Loss
+If the connection to the broker is lost, the listener will attempt to reconnect automatically:
+
+var notification = {
+    onConnectionLost: function () {
+        console.log("Connection lost. Attempting to reconnect...");
+        setTimeout(() => {
+            push.register(myListener, config, onConnectionLost);
+        }, 5000); // Retry after 5 seconds
+    }
+};
 
 
-  -------------
+License
+This project is licensed under the MIT License.
 
+IMPORTANT:
+This is an little advanced / updated version of:
+https://github.com/etouraille/cordova-plugin-amqp (11years old now in 2025)
 
-The config json example: 
-  { 
-       host : host, 
-       port : port, 
-       virtualhost : virtualhost, 
-       login : login, 
-       password : password,
-       routingKey : key, 
-  }
 

@@ -1,11 +1,12 @@
 {
 "name": "cordova-plugin-amqp-advanced",
-  "version": "1.0.0",
+  "version": "1.0.5",
   "description": "Cordova Push Advanced Notification AMQP plugin",
   "cordova": {
     "id": "cordova-plugin-amqp-advanced",
     "platforms": [
-      "android"
+      "android",
+      "ios"
     ]
   },
   "repository": {
@@ -19,8 +20,7 @@
     "push",
     "ecosystem:cordova",
     "cordova-android",
-    "cordova-plugin",
-    "rabbitmq"
+    "cordova-plugin"
   ],
   "engines": [
     {
@@ -29,5 +29,10 @@
     }
   ],
   "author": "Prestbit",
-  "license": "GNU"
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/zollmarkt/cordova-plugin-amqp-advanced/issues"
+  },
+  "homepage": "https://github.com/zollmarkt/cordova-plugin-amqp-advanced#readme",
+  "main": "www/notification.js"
 }

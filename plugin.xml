@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0" id="org.amqp.notification" version="1.0.4">
+<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0" id="org.amqp.notification" version="1.0.5">
   <name>AMQP notification</name>
   <description>AMQP notification for cordova</description>
   <license>MIT</license>
   <keywords>push,notification,rabbitMQ,amqp</keywords>
-  <author email="edouard.touraille@gmail.com" href="http://www.objetspartages.org">Flibusteam</author>
+  <author email="developer@prestbit.de" href="http://www.prestbit.de">Prestbit</author>
   <engines>
-      <engine name="cordova" version=">=4.0.0" />
+      <engine name="cordova" version=">=10.0.0" />
   </engines>
   <js-module src="www/notification.js" name="Push">
     <clobbers target="push" />
@@ -39,4 +39,18 @@
         </receiver>
     </config-file>
   </platform>
+  <!-- iOS -->
+  <platform name="ios">
+    <config-file target="config.xml" parent="/*">
+      <feature name="Push">
+        <param name="ios-package" value="Push"/>
+      </feature>
+    </config-file>
+    <source-file src="src/ios/Push.swift" target-dir="src/ios" />
+    <podspec>
+      <pods use-frameworks="true">
+        <pod name="RMQClient" version="~> 0.12.0" />
+      </pods>
+    </podspec>
+</platform>
 </plugin>
