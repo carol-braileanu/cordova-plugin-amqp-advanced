@@ -21,10 +21,6 @@ import org.amqp.notification.Config;
 import android.util.Pair;
 import com.rabbitmq.client.Channel;
 
-
-
-
-
 public class Push extends CordovaPlugin {
 	private static CallbackContext clbContext;
 	private PushManager manager;
@@ -35,195 +31,193 @@ public class Push extends CordovaPlugin {
 
 	public static final String TAG = "Push";
 	private NotificationService notificationService;
-	
 
 	public Push() {
 		Log.e("RabbitMQ - Push Debug", "Push instance created");
 		this.notificationService = new NotificationService();
-  }
+	}
 
-
-	public static final String ACTION_INITIALIZE = "initialize";
-
+	public static final String ACTION_INITIALIZE = "connect";
 
 	@Override
 	public boolean execute(String action, JSONArray args, CallbackContext callbackContext) {
-    try {
-        Log.e("RabbitMQ - Push Debug", "Action received: " + action);
+		try {
+			Log.e("RabbitMQ - Push Debug", "Action received: " + action);
 
-        clbContext = callbackContext;
+			clbContext = callbackContext;
 
-				if ("createTemporaryQueue".equals(action)) {
-					Log.e("RabbitMQ - Push Debug", "Processing action: createTemporaryQueue");
-			
-					if (notificationService == null) {
-							Log.e("RabbitMQ - Push Debug", "NotificationService is null. Cannot create temporary queue.");
-							callbackContext.error("NotificationService not initialized.");
-							return false;
-					}
+			if ("createTemporaryQueue".equals(action)) {
+				Log.e("RabbitMQ - Push Debug", "Processing action: createTemporaryQueue");
 
-					notificationService.createAndListenTemporaryQueueAsync(callbackContext);
+				if (notificationService == null) {
+					Log.e("RabbitMQ - Push Debug", "NotificationService is null. Cannot create temporary queue.");
+					callbackContext.error("NotificationService not initialized.");
+					return false;
+				}
 
-					return true;
-			  }
+				notificationService.createAndListenTemporaryQueueAsync(callbackContext);
 
-
-        // Setting `notificationEventListener` only if exists in args
-        if (args.length() > 0 && args.getJSONObject(0).has("notificationListener")) {
-            notificationEventListener = args.getJSONObject(0).getString("notificationListener");
-            Log.e("RabbitMQ - Push Debug", "Notification listener set: " + notificationEventListener);
-        } else {
-            Log.e("RabbitMQ - Push Debug", "Notification listener not provided in arguments.");
-        }
-
-
-        if (args.length() > 0 && args.getJSONObject(0).has("configuration")) {
-            JSONObject configJson = args.getJSONObject(0).getJSONObject("configuration");
-            Log.e("RabbitMQ - Push Debug", "Full configuration received: " + configJson.toString());
-
-            // Extragem lista de cozi (queues) din configurație
-            JSONArray configArray = configJson.getJSONArray("queues");
-            Log.e("RabbitMQ - Push Debug", "Queues array: " + configArray.toString());
-
-            // Saving here configs using config class
-            Config.init(configJson, cordova.getActivity().getApplicationContext());
-        }
-
-        cordovaWebView = this.webView;
-        Log.e("RabbitMQ - Push INIT", "Initialization complete");
-
-        this.manager = new PushManager(cordova.getActivity(), this);
-
-        // check if action is init
-        if (ACTION_INITIALIZE.equals(action)) {
-            // check if something exists in cache
-            if (!cachedNnotifications.isEmpty()) {
-                for (PushNotification notification : cachedNnotifications) {
-                    Log.d(Push.TAG, "RabbitMQ - Push - Processing cached push: " + notification.toString());
-                    proceedNotification(notification);
-                }
-                cachedNnotifications.clear();
-            }
-
-            clbContext.success();
-            return true;
-        }
-
-        // unknown action
-        callbackContext.error("RabbitMQ - Push - Invalid action: " + action);
-        return false;
-
-    } catch (JSONException e) {
-        Log.e("<<<<<<EXCEPTION >>>>>>>", e.getMessage());
-        callbackContext.error(e.getMessage());
-        return false;
-    }
-}
-
-
-
-public static boolean isActive() {
-
-	if (cordovaWebView != null) {
-		return true;
-	}
-	return false;
-}
-
-@Override
-public void onPause(boolean multitasking) {
-	super.onPause(multitasking);
-	Push.inPause = true;
-}
-
-@Override
-public void onResume(boolean multitasking) {
-	super.onResume(multitasking);
-	Push.inPause = false;
-}
-
-
-
-public static void sendJavascript(String js) {
-	if (null != cordovaWebView) {
-		Log.d("RabbitMQ -JScript", "JS" + js);
-		Log.e("RabbitMQ - Push CordovaWebView", "CordovaWebView status: " + (cordovaWebView != null));
-
-		cordovaWebView.loadUrl("javascript:"+js);							
-	}
-}
-
-
-public static void proceedNotification(PushNotification extras) {
-	if (null != extras) {
-			if (null != cordovaWebView) {
-					try {
-							// check if is valid JSON 
-							String message = extras.toString(); // message String
-							String js;
-
-							if (isJsonValid(message)) {
-									// if JSON, send it directly
-									js = "window.push.listenerCallback(\"BEEP\", " + message + ")";
-							} else {
-									js = "window.push.listenerCallback(\"BEEP\", \"" + message.replace("\"", "\\\"") + "\")";
-							}
-
-							Log.d("RabbitMQ -JScript - Push", "Sending JavaScript event: " + js);
-							cordovaWebView.sendJavascript(js);
-					} catch (Exception e) {
-							Log.e("RabbitMQ -JScript Push", "Error while sending notification", e);
-					}
+				return true;
 			}
-	}
-}
 
+			if ("listenQueue".equals(action)) {
+				Log.e("RabbitMQ - Push Debug", "Processing action: createDirectQueueWithBinding");
+
+				if (notificationService == null) {
+					Log.e("RabbitMQ - Push Debug", "NotificationService is null. Cannot create temporary queue.");
+					callbackContext.error("NotificationService not initialized.");
+					return false;
+				}
+
+				notificationService.listenQueueAsync(args.getString(0),
+						callbackContext);
+
+				return true;
+			}
+
+			// Setting `notificationEventListener` only if exists in args
+			if (args.length() > 0 && args.getJSONObject(0).has("notificationListener")) {
+				notificationEventListener = args.getJSONObject(0).getString("notificationListener");
+				Log.e("RabbitMQ - Push Debug", "Notification listener set: " + notificationEventListener);
+			} else {
+				Log.e("RabbitMQ - Push Debug", "Notification listener not provided in arguments.");
+			}
+
+			if (args.length() > 0 && args.getJSONObject(0).has("configuration")) {
+				JSONObject configJson = args.getJSONObject(0).getJSONObject("configuration");
+				Log.e("RabbitMQ - Push Debug", "Full configuration received: " + configJson.toString());
+
+				// Extragem lista de cozi (queues) din configurație
+				// JSONArray configArray = configJson.getJSONArray("queues");
+				// Log.e("RabbitMQ - Push Debug", "Queues array: " + configArray.toString());
+
+				// Saving here configs using config class
+				Config.init(configJson, cordova.getActivity().getApplicationContext());
+			}
+
+			cordovaWebView = this.webView;
+			Log.e("RabbitMQ - Push INIT", "Initialization complete");
+
+			this.manager = new PushManager(cordova.getActivity(), this);
+
+			// check if action is init
+			if (ACTION_INITIALIZE.equals(action)) {
+				// check if something exists in cache
+				if (!cachedNnotifications.isEmpty()) {
+					for (PushNotification notification : cachedNnotifications) {
+						Log.d(Push.TAG, "RabbitMQ - Push - Processing cached push: " + notification.toString());
+						proceedNotification(notification);
+					}
+					cachedNnotifications.clear();
+				}
+				notificationService.connect(new Config(cordova.getActivity().getApplicationContext()), clbContext);
+				return true;
+			}
+
+			// unknown action
+			callbackContext.error("RabbitMQ - Push - Invalid action: " + action);
+			return false;
+
+		} catch (JSONException e) {
+			Log.e("<<<<<<EXCEPTION >>>>>>>", e.getMessage());
+			callbackContext.error(e.getMessage());
+			return false;
+		}
+	}
+
+	public static boolean isActive() {
+
+		if (cordovaWebView != null) {
+			return true;
+		}
+		return false;
+	}
+
+	@Override
+	public void onPause(boolean multitasking) {
+		super.onPause(multitasking);
+		Push.inPause = true;
+	}
+
+	@Override
+	public void onResume(boolean multitasking) {
+		super.onResume(multitasking);
+		Push.inPause = false;
+	}
+
+	public static void sendJavascript(String js) {
+		if (null != cordovaWebView) {
+			Log.d("RabbitMQ -JScript", "JS" + js);
+			Log.e("RabbitMQ - Push CordovaWebView", "CordovaWebView status: " + (cordovaWebView != null));
+
+			cordovaWebView.loadUrl("javascript:" + js);
+		}
+	}
+
+	public static void proceedNotification(PushNotification extras) {
+		if (null != extras) {
+			if (null != cordovaWebView) {
+				try {
+					// check if is valid JSON
+					String message = extras.toString(); // message String
+					String js;
+
+					if (isJsonValid(message)) {
+						// if JSON, send it directly
+						js = "window.push.listenerCallback(\"BEEP\", " + message + ")";
+					} else {
+						js = "window.push.listenerCallback(\"BEEP\", \"" + message.replace("\"", "\\\"") + "\")";
+					}
+
+					cordovaWebView.sendJavascript(js);
+				} catch (Exception e) {
+					Log.e("RabbitMQ -JScript Push", "Error while sending notification", e);
+				}
+			}
+		}
+	}
 
 	public static List<JSONObject> getConfigurations(Context context) {
 		try {
-				// create list for configurations
-				List<JSONObject> configurations = new ArrayList<>();
+			// create list for configurations
+			List<JSONObject> configurations = new ArrayList<>();
 
-				// read configs
-				Config config = new Config(context);
+			// read configs
+			Config config = new Config(context);
 
-				// Convert `queues` in JSONArray
-				JSONArray queues = new JSONArray(config.queues);
+			// Convert `queues` in JSONArray
+			JSONArray queues = new JSONArray(config.queues);
 
-				// Iterte queues and add 
-				for (int i = 0; i < queues.length(); i++) {
-						configurations.add(queues.getJSONObject(i));
-				}
+			// Iterte queues and add
+			for (int i = 0; i < queues.length(); i++) {
+				configurations.add(queues.getJSONObject(i));
+			}
 
-				return configurations;
+			return configurations;
 		} catch (Exception e) {
-				Log.e("RabbitMQ - Push", "Error retrieving configurations", e);
-				return new ArrayList<>(); // Returnează o listă goală în caz de eroare
+			Log.e("RabbitMQ - Push", "Error retrieving configurations", e);
+			return new ArrayList<>(); // Returnează o listă goală în caz de eroare
 		}
-}
-		
+	}
 
-
-private static boolean isJsonValid(String json) {
+	private static boolean isJsonValid(String json) {
 		try {
-				new JSONObject(json);
-				return true; 
+			new JSONObject(json);
+			return true;
 		} catch (JSONException ex) {
-				return false; 
+			return false;
 		}
-}
+	}
 
+	@Override
+	public void onDestroy() {
+		super.onDestroy();
+		cordovaWebView = null;
+	}
 
-
-@Override
-public void onDestroy() {
-	super.onDestroy();
-	cordovaWebView = null;
-}
-
-@Override
-public boolean onOverrideUrlLoading(String url) {
-	return false;
-}
+	@Override
+	public boolean onOverrideUrlLoading(String url) {
+		return false;
+	}
 
 }

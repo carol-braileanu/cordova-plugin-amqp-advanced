@@ -17,7 +17,7 @@ import android.util.Log;
 class Config {
 
     protected static String configFileName = "config";
-    
+
     public String host;
     public int port;
     public String username;
@@ -27,31 +27,30 @@ class Config {
     public String routingKey;
     public String queues;
 
-    public static void init( JSONObject configuration , Context context ) {
+    public static void init(JSONObject configuration, Context context) {
         writeInConfigFile(
-                configuration, 
-                configFileName, 
-                context
-                ); 
+                configuration,
+                configFileName,
+                context);
     }
 
-    protected static void writeInConfigFile(JSONObject config , String configFileName, Context context ) {
+    protected static void writeInConfigFile(JSONObject config, String configFileName, Context context) {
         try {
-           FileWriter file = new FileWriter("/data/data/" + context.getPackageName() + "/" 
-                   + configFileName );
-           file.write(config.toString());
-           file.flush();
-           file.close();
-        } catch(IOException e) {
+            FileWriter file = new FileWriter("/data/data/" + context.getPackageName() + "/"
+                    + configFileName);
+            file.write(config.toString());
+            file.flush();
+            file.close();
+        } catch (IOException e) {
             e.printStackTrace();
 
         }
-        
+
     }
 
-    public Config( Context context ) {
+    public Config(Context context) {
         try {
-            File file = new File("/data/data/" + context.getPackageName() + "/" + configFileName) ;
+            File file = new File("/data/data/" + context.getPackageName() + "/" + configFileName);
             FileInputStream is = new FileInputStream(file);
             int size = is.available();
             byte[] buffer = new byte[size];
@@ -61,13 +60,12 @@ class Config {
             JSONObject configJson = new JSONObject(content);
             initVarFromJson(configJson);
 
-        } catch (IOException e ) {
+        } catch (IOException e) {
             e.printStackTrace();
-        } catch (JSONException e ) {
+        } catch (JSONException e) {
             e.printStackTrace();
         }
     }
-
 
     public void addQueue(String queueName, String routingKey) {
         try {
@@ -89,24 +87,24 @@ class Config {
             this.username = json.getString("username");
             this.password = json.getString("password");
             this.virtualHost = json.getString("virtualHost");
-    
+
             // Init queues as JSON string
-            this.queues = json.getJSONArray("queues").toString();
+            // this.queues = json.getJSONArray("queues").toString();
         } catch (JSONException e) {
             e.printStackTrace();
         }
     }
-    
+
 }
 
-/*The config json has the form
- * { 
- *      host : host 
- *      port : port 
- *      virtualhost : virtualhost 
- *      login : login 
- *      password : password
- *      routingKey : key 
- *  }
+/*
+ * The config json has the form
+ * {
+ * host : host
+ * port : port
+ * virtualhost : virtualhost
+ * login : login
+ * password : password
+ * routingKey : key
+ * }
  **/
-
