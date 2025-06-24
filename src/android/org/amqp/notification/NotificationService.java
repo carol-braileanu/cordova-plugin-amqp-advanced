@@ -61,6 +61,8 @@ public class NotificationService extends Service {
                 factory.setHandshakeTimeout(5000);
                 factory.setRequestedHeartbeat(30);
                 factory.setNetworkRecoveryInterval(5000);
+                if (connection!=null)
+                    connection.close();
 
                 connection = factory.newConnection();
                 this.channel = connection.createChannel();
