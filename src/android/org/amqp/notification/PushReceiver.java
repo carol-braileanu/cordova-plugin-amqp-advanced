@@ -19,8 +19,11 @@ public class PushReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         if (PUSH_INTENT_ACTION.equals(intent.getAction())) {
+                        try{
+
             JSONObject message = new JSONObject(intent.getStringExtra(PUSH_INTENT_EXTRA));
-            Push.proceedNotification(new PushNotification(message.getString("message"), message.getLong(message.getString("deliveryTag"))));
+                Push.proceedNotification(new PushNotification(message.getString("message"), message.getLong("deliveryTag")));
+            } catch (JSONException ex) {}
         } else {
             Log.e("RabbitMQ - PushReceiver", "Unknown action: " + intent.getAction());
         }

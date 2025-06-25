@@ -46,19 +46,6 @@ public class Push extends CordovaPlugin {
 
 			clbContext = callbackContext;
 
-			if ("createTemporaryQueue".equals(action)) {
-				Log.e("RabbitMQ - Push Debug", "Processing action: createTemporaryQueue");
-
-				if (notificationService == null) {
-					Log.e("RabbitMQ - Push Debug", "NotificationService is null. Cannot create temporary queue.");
-					callbackContext.error("NotificationService not initialized.");
-					return false;
-				}
-
-				notificationService.createAndListenTemporaryQueueAsync(callbackContext);
-
-				return true;
-			}
 
 			if ("listenQueue".equals(action)) {
 				Log.e("RabbitMQ - Push Debug", "Processing action: createDirectQueueWithBinding");
@@ -179,14 +166,14 @@ public class Push extends CordovaPlugin {
 			if (null != cordovaWebView) {
 				try {
 					// check if is valid JSON
-					String message = extras.getString("message"); // message String
+					String message = extras.content; // message String
 					String js;
 
 					if (isJsonValid(message)) {
 						// if JSON, send it directly
-						js = "window.push.listenerCallback(" + extras.deliveryTag + ", " + extras.getString("message") + ")";
+						js = "window.push.listenerCallback(" + extras.deliveryTag + ", " + extras.content + ")";
 					} else {
-						js = "window.push.listenerCallback(" + extras.deliveryTag + ", \"" + extras.getString("message").replace("\"", "\\\"") + "\")";
+						js = "window.push.listenerCallback(" + extras.deliveryTag + ", \"" + extras.content.replace("\"", "\\\"") + "\")";
 					}
 
 					cordovaWebView.sendJavascript(js);

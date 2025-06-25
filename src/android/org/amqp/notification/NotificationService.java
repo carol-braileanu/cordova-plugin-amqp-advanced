@@ -15,6 +15,7 @@ import org.apache.cordova.CallbackContext;
 import java.util.concurrent.TimeoutException;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.json.JSONException;
 import java.io.*;
 import java.util.List;
 import android.util.Pair;
@@ -87,81 +88,6 @@ public class NotificationService extends Service {
         amqpThread.start();
     }
 
-    public void createAndListenTemporaryQueueAsync(CallbackContext callbackContext) {
-        new Thread(() -> {
-            try {
-                if (connection == null || !connection.isOpen()) {
-                    Log.e("RabbitMQ", "Connection is not open. Cannot create temporary queue.");
-                    callbackContext.error("Connection is not open.");
-                    return;
-                }
-
-                /*
-                 * String queueName = "NotificationQueue";
-                 * boolean durable = false; // if the rabbitMQ server stops, the queue is stile
-                 * available
-                 * boolean exclusive = false; //the queue can be consume by other connexion, not
-                 * dedicated to that connection only.
-                 * boolean autoDelete = false; //the queue must not be deleted, because it miht
-                 * be use eventually by other apps
-                 * channel.queueDeclare(queueName, durable, exclusive, autoDelete, null);
-                 */
-
-                // Map<String, Object> argsMap = new HashMap<>();
-                // argsMap.put("x-expires", 120000);
-                // argsMap
-
-                // String queueName = channel.queueDeclare("", false, true, true,
-                // null).getQueue();
-                String queueName = channel.queueDeclare(
-                        "", // Numele cozii va fi generat automat
-                        false, // Durabilitatea cozii (false = nu e durabilă)
-                        true, // Exclusivă (true = se poate folosi doar de către conexiunea curentă)
-                        true, // Auto-deleted (coada va fi ștearsă automat când nu mai există consumatori)
-                        null // x-expires = 120000 milisecunde (adică 120 de secunde)
-                ).getQueue();
-
-                Log.e("RabbitMQ", "Temporary queue created: " + queueName);
-
-                channel.basicConsume(queueName, false, "consumer_" + queueName, new DefaultConsumer(channel) {
-                    @Override
-                    public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties,
-                            byte[] body) throws IOException {
-
-                        JSONObject message = new JSONObject();
-                        message.put("message", new String(body));
-                        message.put("deliveryTag", envelope.getDeliveryTag());
-                        Log.e("RabbitMQ Message", "Received from TEMP queue: " + message);
-
-                        Intent intent = new Intent();
-                        intent.setAction(PushReceiver.PUSH_INTENT_ACTION);
-                        intent.putExtra(PushReceiver.PUSH_INTENT_EXTRA, message.toString());
-                        intent.setClassName(NotificationService.serviceContext.getPackageName(),
-                                "org.amqp.notification.PushReceiver");
-                        NotificationService.serviceContext.sendBroadcast(intent);
-
-                        Log.e("RabbitMQ", "Deleting temporary queue: " + queueName);
-                        channel.queueDelete(queueName);
-                        try {
-                            channel.close();
-                            Log.e("RabbitMQ", "Channel closed successfully.");
-                        } catch (TimeoutException e) {
-                            Log.e("RabbitMQ", "TimeoutException while closing the channel: " + e.getMessage());
-                        } catch (IOException e) {
-                            Log.e("RabbitMQ", "IOException while closing the channel: " + e.getMessage());
-                        }
-                    }
-                });
-
-                Log.e("RabbitMQ", "Listening on temporary queue: " + queueName);
-                callbackContext.success(queueName);
-            } catch (IOException e) {
-                Log.e("RabbitMQ", "Error in createAndListenTemporaryQueueAsync: " + e.getMessage());
-                callbackContext.error("Error creating temporary queue: " + e.getMessage());
-            }
-        }).start();
-    }
-
     public void listenQueueAsync(String queueName,
             CallbackContext callbackContext) {
         new Thread(() -> {
@@ -172,14 +98,6 @@ public class NotificationService extends Service {
                     return;
                 }
 
-                Log.e("RabbitMQ Message", "Coonecting to queue: " + queueName);
-                try {
-                    channel.basicCancel("consumer_" + queueName);
-                } catch (IOException ex) {
-                    ex.printStackTrace();
-
-                }
-
                 Log.e("RabbitMQ Message", "Consumer cancelled: consumer_" + queueName);
 
                 channel.basicConsume(queueName, false, "consumer_" + queueName, new DefaultConsumer(channel) {
@@ -188,8 +106,10 @@ public class NotificationService extends Service {
                             byte[] body) throws IOException {
 
                         JSONObject message = new JSONObject();
+                        try {
                         message.put("message", new String(body));
                         message.put("deliveryTag", envelope.getDeliveryTag());
+                        } catch (JSONException ex) {}
                         Log.e("RabbitMQ Message", "Received from TEMP queue: " + message);
 
                         Intent intent = new Intent();
@@ -198,23 +118,13 @@ public class NotificationService extends Service {
                         intent.setClassName(NotificationService.serviceContext.getPackageName(),
                                 "org.amqp.notification.PushReceiver");
                         NotificationService.serviceContext.sendBroadcast(intent);
-
-                        Log.e("RabbitMQ", "Deleting temporary queue: " + queueName);
-                        channel.queueDelete(queueName);
-                        try {
-                            channel.close();
-                            Log.e("RabbitMQ", "Channel closed successfully.");
-                        } catch (TimeoutException e) {
-                            Log.e("RabbitMQ", "TimeoutException while closing the channel: " + e.getMessage());
-                        } catch (IOException e) {
-                            Log.e("RabbitMQ", "IOException while closing the channel: " + e.getMessage());
-                        }
                     }
                 });
 
                 Log.e("RabbitMQ", "Listening on queue: " + queueName);
                 callbackContext.success();
             } catch (IOException e) {
+                e.printStackTrace();
                 Log.e("RabbitMQ", "Error in createAndListenTemporaryQueueAsync: " + e.getMessage());
                 callbackContext.error("Error creating temporary queue: " + e.getMessage());
             }
@@ -222,8 +132,13 @@ public class NotificationService extends Service {
     }
 
     public void sendAck(long deliveryTag, CallbackContext callbackContext) {
+        try {
         channel.basicAck(deliveryTag, false);
         callbackContext.success();
+        } catch (IOException ex) {
+            ex.printStackTrace();
+            callbackContext.error(ex.getMessage());
+        }
     }
 
     public void sendMessageAsync(String message, String exchange, String routingKey, CallbackContext callbackContext) {
