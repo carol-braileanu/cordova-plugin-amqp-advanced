@@ -71,7 +71,26 @@
                 "listenQueue",
                 [queueName, "window.push.listenerCallback"]
             ));
+        },
+        sendMessage: function(message, exchange, routingKey) {
+            return new Promise((resolve, reject) => cordova.exec(
+                resolve,
+                reject,
+                "Push",
+                "sendMessage",
+                [message, exchange, routingKey]
+            ));
+        },
+        sendAck: function(tag) {
+            return new Promise((resolve, reject) => cordova.exec(
+                resolve,
+                reject,
+                "Push",
+                "sendAck",
+                [tag]
+            ));
         }
+
     };
 
     module.exports = notification;

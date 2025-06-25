@@ -4,27 +4,12 @@ import java.lang.String;
 
 class PushNotification {
     
-    private String content;
+    public String content;
+    public long deliveryTag;
 
-    public PushNotification(String content ) {
-        
-       this.content = content;
-    
+    public PushNotification(String content, long deliveryTag ) {
+        this.content = content;
+        this.deliveryTag = deliveryTag;
     }
 
-    public String toString(){
-        return content;
-    }
-
-    public String getMessage(){
-        return content;
-    }
-
-    // public String getId(){
-    //     return new String("BEEP");
-    // }
-
-    public String getId(){
-        return new String("BEEP");
-    }
 }

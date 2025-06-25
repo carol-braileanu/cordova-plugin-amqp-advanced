@@ -15,7 +15,7 @@ import org.apache.cordova.CallbackContext;
 import java.util.concurrent.TimeoutException;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import java.io.IOException;
+import java.io.*;
 import java.util.List;
 import android.util.Pair;
 
@@ -61,11 +61,12 @@ public class NotificationService extends Service {
                 factory.setHandshakeTimeout(5000);
                 factory.setRequestedHeartbeat(30);
                 factory.setNetworkRecoveryInterval(5000);
-                if (connection!=null)
+                if (connection!=null && connection.isOpen())
                     connection.close();
 
                 connection = factory.newConnection();
                 this.channel = connection.createChannel();
+                this.channel.basicQos(1);
                 Log.e("RabbitMQ", "Connection established");
 
                 connection.addShutdownListener(cause -> {
@@ -76,43 +77,6 @@ public class NotificationService extends Service {
                     }
                 });
 
-                // List<JSONObject> configurations =
-                // Push.getConfigurations(NotificationService.this);
-                // for (JSONObject config : configurations) {
-                // String queueName = config.optString("queueName", null);
-
-                // if (queueName == null || queueName.isEmpty()) {
-                // Log.e("RabbitMQ - NotificationService", "Queue name is null or empty.
-                // Skipping configuration.");
-                // continue;
-                // }
-
-                // Log.e("RabbitMQ - NotificationService", "Creating consumer for queue: " +
-                // queueName);
-
-                // Channel channel = connection.createChannel();
-                // channel.basicConsume(queueName, false, "consumer_" + queueName, new
-                // DefaultConsumer(channel) {
-                // @Override
-                // public void handleDelivery(String consumerTag, Envelope envelope,
-                // AMQP.BasicProperties properties, byte[] body) throws IOException {
-                // String message = new String(body);
-                // Log.e("RabbitMQ - RabbitMQ Message",
-                // "Received from queue - FIXED QUEUES " + queueName + ": " + message);
-
-                // Intent intent = new Intent();
-                // intent.setAction(PushReceiver.PUSH_INTENT_ACTION);
-                // intent.putExtra(PushReceiver.PUSH_INTENT_EXTRA, message);
-                // intent.setClassName(getApplicationContext().getPackageName(),
-                // "org.amqp.notification.PushReceiver");
-                // getApplicationContext().sendBroadcast(intent);
-
-                // channel.basicAck(envelope.getDeliveryTag(), false);
-                // }
-                // });
-
-                // Log.e("RabbitMQ", "Consumer added for queue: " + queueName);
-                // }
                 callbackContext.success();
             } catch (Exception e) {
                 Log.e("RabbitMQ Error", "Error in RabbitMQ listener", e);
@@ -163,17 +127,18 @@ public class NotificationService extends Service {
                     @Override
                     public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties,
                             byte[] body) throws IOException {
-                        String message = new String(body);
+
+                        JSONObject message = new JSONObject();
+                        message.put("message", new String(body));
+                        message.put("deliveryTag", envelope.getDeliveryTag());
                         Log.e("RabbitMQ Message", "Received from TEMP queue: " + message);
 
                         Intent intent = new Intent();
                         intent.setAction(PushReceiver.PUSH_INTENT_ACTION);
-                        intent.putExtra(PushReceiver.PUSH_INTENT_EXTRA, message);
+                        intent.putExtra(PushReceiver.PUSH_INTENT_EXTRA, message.toString());
                         intent.setClassName(NotificationService.serviceContext.getPackageName(),
                                 "org.amqp.notification.PushReceiver");
                         NotificationService.serviceContext.sendBroadcast(intent);
-
-                        channel.basicAck(envelope.getDeliveryTag(), false);
 
                         Log.e("RabbitMQ", "Deleting temporary queue: " + queueName);
                         channel.queueDelete(queueName);
@@ -221,25 +186,60 @@ public class NotificationService extends Service {
                     @Override
                     public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties,
                             byte[] body) throws IOException {
-                        String message = new String(body);
+
+                        JSONObject message = new JSONObject();
+                        message.put("message", new String(body));
+                        message.put("deliveryTag", envelope.getDeliveryTag());
+                        Log.e("RabbitMQ Message", "Received from TEMP queue: " + message);
 
                         Intent intent = new Intent();
                         intent.setAction(PushReceiver.PUSH_INTENT_ACTION);
-                        intent.putExtra(PushReceiver.PUSH_INTENT_EXTRA, message);
+                        intent.putExtra(PushReceiver.PUSH_INTENT_EXTRA, message.toString());
                         intent.setClassName(NotificationService.serviceContext.getPackageName(),
                                 "org.amqp.notification.PushReceiver");
                         NotificationService.serviceContext.sendBroadcast(intent);
 
-                        channel.basicAck(envelope.getDeliveryTag(), false);
+                        Log.e("RabbitMQ", "Deleting temporary queue: " + queueName);
+                        channel.queueDelete(queueName);
+                        try {
+                            channel.close();
+                            Log.e("RabbitMQ", "Channel closed successfully.");
+                        } catch (TimeoutException e) {
+                            Log.e("RabbitMQ", "TimeoutException while closing the channel: " + e.getMessage());
+                        } catch (IOException e) {
+                            Log.e("RabbitMQ", "IOException while closing the channel: " + e.getMessage());
+                        }
                     }
                 });
 
                 Log.e("RabbitMQ", "Listening on queue: " + queueName);
                 callbackContext.success();
             } catch (IOException e) {
-                e.printStackTrace();
                 Log.e("RabbitMQ", "Error in createAndListenTemporaryQueueAsync: " + e.getMessage());
                 callbackContext.error("Error creating temporary queue: " + e.getMessage());
+            }
+        }).start();
+    }
+
+    public void sendAck(long deliveryTag, CallbackContext callbackContext) {
+        channel.basicAck(deliveryTag, false);
+        callbackContext.success();
+    }
+
+    public void sendMessageAsync(String message, String exchange, String routingKey, CallbackContext callbackContext) {
+        new Thread(() -> {
+            if (connection == null || !connection.isOpen()) {
+                Log.e("RabbitMQ", "Connection is not open. Cannot create temporary queue.");
+                callbackContext.error("Connection is not open.");
+                return;
+            }
+
+            try {
+                channel.basicPublish(exchange, routingKey, null, message.getBytes("utf-8"));
+                callbackContext.success();
+            } catch (IOException ex) {
+                ex.printStackTrace();
+                callbackContext.error(ex.getMessage());
             }
         }).start();
     }
@@ -247,6 +247,10 @@ public class NotificationService extends Service {
     @Override
     public void onDestroy() {
         amqpThread = null;
+        try {
+            if (connection != null && connection.isOpen())
+                this.connection.close();
+        } catch(IOException ex) {}
         super.onDestroy();
     }
 

@@ -75,6 +75,26 @@ public class Push extends CordovaPlugin {
 				return true;
 			}
 
+			if ("sendMessage".equals(action)) {
+				if (notificationService == null) {
+					Log.e("RabbitMQ - Push Debug", "NotificationService is null. Cannot create temporary queue.");
+					callbackContext.error("NotificationService not initialized.");
+					return false;
+				}
+				notificationService.sendMessageAsync(args.getString(0), args.getString(1), args.getString(2), callbackContext);
+				return true;
+			}
+
+			if ("sendAck".equals(action)) {
+				if (notificationService == null) {
+					Log.e("RabbitMQ - Push Debug", "NotificationService is null. Cannot create temporary queue.");
+					callbackContext.error("NotificationService not initialized.");
+					return false;
+				}
+				notificationService.sendAck(args.getLong(0), callbackContext);
+				return true;
+			}
+
 			// Setting `notificationEventListener` only if exists in args
 			if (args.length() > 0 && args.getJSONObject(0).has("notificationListener")) {
 				notificationEventListener = args.getJSONObject(0).getString("notificationListener");
@@ -159,14 +179,14 @@ public class Push extends CordovaPlugin {
 			if (null != cordovaWebView) {
 				try {
 					// check if is valid JSON
-					String message = extras.toString(); // message String
+					String message = extras.getString("message"); // message String
 					String js;
 
 					if (isJsonValid(message)) {
 						// if JSON, send it directly
-						js = "window.push.listenerCallback(\"BEEP\", " + message + ")";
+						js = "window.push.listenerCallback(" + extras.deliveryTag + ", " + extras.getString("message") + ")";
 					} else {
-						js = "window.push.listenerCallback(\"BEEP\", \"" + message.replace("\"", "\\\"") + "\")";
+						js = "window.push.listenerCallback(" + extras.deliveryTag + ", \"" + extras.getString("message").replace("\"", "\\\"") + "\")";
 					}
 
 					cordovaWebView.sendJavascript(js);
