@@ -6,6 +6,7 @@ import java.util.List;
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.CordovaWebView;
+import org.apache.cordova.CordovaInterface;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -22,11 +23,12 @@ import android.util.Pair;
 import com.rabbitmq.client.Channel;
 
 public class Push extends CordovaPlugin {
-	private static CallbackContext clbContext;
+	public static CallbackContext clbContext;
 	private PushManager manager;
 	public static boolean inPause;
-	private static String notificationEventListener;
-	private static CordovaWebView cordovaWebView;
+	public static String notificationEventListener;
+	public static CordovaInterface cordovaImpl;
+	public static CordovaWebView cordovaWebView;
 	private static List<PushNotification> cachedNnotifications = new ArrayList<PushNotification>();
 
 	public static final String TAG = "Push";
@@ -34,10 +36,18 @@ public class Push extends CordovaPlugin {
 
 	public Push() {
 		Log.e("RabbitMQ - Push Debug", "Push instance created");
-		this.notificationService = new NotificationService();
 	}
 
 	public static final String ACTION_INITIALIZE = "connect";
+
+	@Override
+    public void pluginInitialize()
+    {
+		this.notificationService = new NotificationService();
+		this.cordovaWebView = this.webView;
+		this.cordovaImpl = cordova;
+
+    }
 
 	@Override
 	public boolean execute(String action, JSONArray args, CallbackContext callbackContext) {
@@ -56,8 +66,12 @@ public class Push extends CordovaPlugin {
 					return false;
 				}
 
-				notificationService.listenQueueAsync(args.getString(0),
-						callbackContext);
+				this.cordova.getThreadPool().execute(() -> {
+					try {
+						notificationService.listenQueueAsync(args.getString(0));
+					} catch (JSONException ex) {
+					}
+				});
 
 				return true;
 			}
@@ -82,6 +96,16 @@ public class Push extends CordovaPlugin {
 				return true;
 			}
 
+			if ("closeConnection".equals(action)) {
+				if (notificationService == null) {
+					Log.e("RabbitMQ - Push Debug", "NotificationService is null. Cannot create temporary queue.");
+					callbackContext.error("NotificationService not initialized.");
+					return false;
+				}
+				notificationService.closeConnectionAsync(callbackContext);
+				return true;
+			}
+
 			// Setting `notificationEventListener` only if exists in args
 			if (args.length() > 0 && args.getJSONObject(0).has("notificationListener")) {
 				notificationEventListener = args.getJSONObject(0).getString("notificationListener");
@@ -102,7 +126,6 @@ public class Push extends CordovaPlugin {
 				Config.init(configJson, cordova.getActivity().getApplicationContext());
 			}
 
-			cordovaWebView = this.webView;
 			Log.e("RabbitMQ - Push INIT", "Initialization complete");
 
 			this.manager = new PushManager(cordova.getActivity(), this);

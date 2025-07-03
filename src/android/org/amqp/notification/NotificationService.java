@@ -24,7 +24,6 @@ public class NotificationService extends Service {
 
     protected Thread amqpThread;
     protected static Connection connection;
-    private static CordovaWebView cordovaWebView;
     private Channel temporaryChannel;
     private Channel channel;
     private static Context serviceContext;
@@ -58,7 +57,7 @@ public class NotificationService extends Service {
                 factory.setPort(configuration.port);
                 // factory.useSslProtocol("TLSv1.2");
 
-                factory.setAutomaticRecoveryEnabled(true);
+                factory.setAutomaticRecoveryEnabled(false);
                 factory.setHandshakeTimeout(5000);
                 factory.setRequestedHeartbeat(30);
                 factory.setNetworkRecoveryInterval(5000);
@@ -74,7 +73,7 @@ public class NotificationService extends Service {
                     if (!cause.isInitiatedByApplication()) {
                         Log.e("RabbitMQ", "Connection lost: " + cause.getMessage());
                         String js = "window.push.onConnectionLost()";
-                        cordovaWebView.loadUrl("javascript:" + js);
+                        Push.cordovaWebView.loadUrl("javascript:" + js);
                     }
                 });
 
@@ -88,13 +87,11 @@ public class NotificationService extends Service {
         amqpThread.start();
     }
 
-    public void listenQueueAsync(String queueName,
-            CallbackContext callbackContext) {
-        new Thread(() -> {
+    public void listenQueueAsync(String queueName) {
             try {
                 if (connection == null || !connection.isOpen()) {
                     Log.e("RabbitMQ", "Connection is not open. Cannot create temporary queue.");
-                    callbackContext.error("Connection is not open.");
+                    Push.clbContext.error("Connection is not open.");
                     return;
                 }
 
@@ -122,13 +119,12 @@ public class NotificationService extends Service {
                 });
 
                 Log.e("RabbitMQ", "Listening on queue: " + queueName);
-                callbackContext.success();
+                Push.clbContext.success();
             } catch (IOException e) {
                 e.printStackTrace();
                 Log.e("RabbitMQ", "Error in createAndListenTemporaryQueueAsync: " + e.getMessage());
-                callbackContext.error("Error creating temporary queue: " + e.getMessage());
+                Push.clbContext.error("Error creating temporary queue: " + e.getMessage());
             }
-        }).start();
     }
 
     public void sendAck(long deliveryTag, CallbackContext callbackContext) {
@@ -156,6 +152,16 @@ public class NotificationService extends Service {
                 ex.printStackTrace();
                 callbackContext.error(ex.getMessage());
             }
+        }).start();
+    }
+
+    public void closeConnectionAsync(CallbackContext callbackContext) {
+        new Thread(() -> {
+            try {
+                if (connection != null && connection.isOpen())
+                    this.connection.close();
+            } catch(IOException ex) {}
+            callbackContext.success();
         }).start();
     }
 

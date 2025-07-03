@@ -6,7 +6,7 @@
             notification.listener(event, data);
         },
 
-        connect: function (configuration, onConnectionLostCallback) {
+        connect: function (configuration, onConnectionLostCallback = null) {
             notification.onConnectionLost =
                 onConnectionLostCallback ||
                 function () {
@@ -54,6 +54,15 @@
                 "Push",
                 "sendAck",
                 [tag]
+            ));
+        },
+        closeConnection: function(tag) {
+            return new Promise((resolve, reject) => cordova.exec(
+                resolve,
+                reject,
+                "Push",
+                "closeConnection",
+                []
             ));
         }
 
