@@ -18,7 +18,6 @@
         <param name="android-package" value="org.amqp.notification.Push"/>
       </feature>
     </config-file>
-    <source-file src="src/android/org/amqp/notification/Config.java" target-dir="src/org/amqp/notification/cordova" />
     <source-file src="src/android/org/amqp/notification/Push.java" target-dir="src/org/amqp/notification/cordova" />
     <source-file src="src/android/org/amqp/notification/PushManager.java" target-dir="src/org/amqp/notification/cordova" />
     <source-file src="src/android/org/amqp/notification/PushNotification.java" target-dir="src/org/amqp/notification/cordova" />

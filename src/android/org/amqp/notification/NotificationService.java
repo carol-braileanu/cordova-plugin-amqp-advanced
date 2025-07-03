@@ -45,16 +45,13 @@ public class NotificationService extends Service {
         return START_REDELIVER_INTENT;
     }
 
-    protected void connect(Config configuration, CallbackContext callbackContext) {
-
-        amqpThread = new Thread(() -> {
-            try {
+    protected void connect(JSONObject config) throws JSONException, IOException {
                 ConnectionFactory factory = new ConnectionFactory();
-                factory.setHost(configuration.host);
-                factory.setUsername(configuration.username);
-                factory.setPassword(configuration.password);
-                factory.setVirtualHost(configuration.virtualHost);
-                factory.setPort(configuration.port);
+                factory.setHost(config.getString("host"));
+                factory.setUsername(config.getString("username"));
+                factory.setPassword(config.getString("password"));
+                factory.setVirtualHost(config.getString("virtualHost"));
+                factory.setPort(config.getInt("port"));
                 // factory.useSslProtocol("TLSv1.2");
 
                 factory.setAutomaticRecoveryEnabled(false);
@@ -64,7 +61,13 @@ public class NotificationService extends Service {
                 if (connection!=null && connection.isOpen())
                     connection.close();
 
+                    try {
                 connection = factory.newConnection();
+                    } catch (TimeoutException e) {
+                        e.printStackTrace();
+                        throw new IOException(e.getMessage());
+                    }
+
                 this.channel = connection.createChannel();
                 this.channel.basicQos(1);
                 Log.e("RabbitMQ", "Connection established");
@@ -73,26 +76,15 @@ public class NotificationService extends Service {
                     if (!cause.isInitiatedByApplication()) {
                         Log.e("RabbitMQ", "Connection lost: " + cause.getMessage());
                         String js = "window.push.onConnectionLost()";
-                        Push.cordovaWebView.loadUrl("javascript:" + js);
+                        Push.cordovaWebView.sendJavascript("javascript:" + js);
                     }
                 });
 
-                callbackContext.success();
-            } catch (Exception e) {
-                Log.e("RabbitMQ Error", "Error in RabbitMQ listener", e);
-                callbackContext.error("connection error");
-            }
-        });
-
-        amqpThread.start();
     }
 
-    public void listenQueueAsync(String queueName) {
-            try {
+    public void listenQueue(String queueName) throws JSONException, IOException {
                 if (connection == null || !connection.isOpen()) {
-                    Log.e("RabbitMQ", "Connection is not open. Cannot create temporary queue.");
-                    Push.clbContext.error("Connection is not open.");
-                    return;
+                    throw new IOException("Connection is not open");
                 }
 
                 Log.e("RabbitMQ Message", "Consumer cancelled: consumer_" + queueName);
@@ -102,67 +94,29 @@ public class NotificationService extends Service {
                     public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties,
                             byte[] body) throws IOException {
 
-                        JSONObject message = new JSONObject();
-                        try {
-                        message.put("message", new String(body));
-                        message.put("deliveryTag", envelope.getDeliveryTag());
-                        } catch (JSONException ex) {}
-                        Log.e("RabbitMQ Message", "Received from TEMP queue: " + message);
-
-                        Intent intent = new Intent();
-                        intent.setAction(PushReceiver.PUSH_INTENT_ACTION);
-                        intent.putExtra(PushReceiver.PUSH_INTENT_EXTRA, message.toString());
-                        intent.setClassName(NotificationService.serviceContext.getPackageName(),
-                                "org.amqp.notification.PushReceiver");
-                        NotificationService.serviceContext.sendBroadcast(intent);
+                        Push.proceedNotification(new PushNotification(new String(body), envelope.getDeliveryTag()));
                     }
                 });
 
                 Log.e("RabbitMQ", "Listening on queue: " + queueName);
-                Push.clbContext.success();
-            } catch (IOException e) {
-                e.printStackTrace();
-                Log.e("RabbitMQ", "Error in createAndListenTemporaryQueueAsync: " + e.getMessage());
-                Push.clbContext.error("Error creating temporary queue: " + e.getMessage());
-            }
+
     }
 
-    public void sendAck(long deliveryTag, CallbackContext callbackContext) {
-        try {
+    public void sendAck(long deliveryTag) throws IOException {
         channel.basicAck(deliveryTag, false);
-        callbackContext.success();
-        } catch (IOException ex) {
-            ex.printStackTrace();
-            callbackContext.error(ex.getMessage());
-        }
     }
 
-    public void sendMessageAsync(String message, String exchange, String routingKey, CallbackContext callbackContext) {
-        new Thread(() -> {
+    public void sendMessage(String message, String exchange, String routingKey) throws IOException {
             if (connection == null || !connection.isOpen()) {
-                Log.e("RabbitMQ", "Connection is not open. Cannot create temporary queue.");
-                callbackContext.error("Connection is not open.");
-                return;
+                throw new IOException("Connection is not open");
             }
 
-            try {
-                channel.basicPublish(exchange, routingKey, null, message.getBytes("utf-8"));
-                callbackContext.success();
-            } catch (IOException ex) {
-                ex.printStackTrace();
-                callbackContext.error(ex.getMessage());
-            }
-        }).start();
+            channel.basicPublish(exchange, routingKey, null, message.getBytes("utf-8"));
     }
 
-    public void closeConnectionAsync(CallbackContext callbackContext) {
-        new Thread(() -> {
-            try {
-                if (connection != null && connection.isOpen())
-                    this.connection.close();
-            } catch(IOException ex) {}
-            callbackContext.success();
-        }).start();
+    public void closeConnection() throws IOException {
+        if (connection != null && connection.isOpen())
+            this.connection.close();
     }
 
     @Override
